@@ -74,7 +74,15 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', 'button', function (Y) {
         Y.YQL(Y.Lang.sub(query, para1), function (response) {
             var r = response.query.results, p;
             if (r === null) {
-                Y.one('#mask-msg').setHTML('Error');
+                Y.one('#mask-msg').setHTML('Flickr server busy. <a id="try-again">Reconnect</a>');
+                Y.one('#try-again').on('click', function (e) {
+                    e.preventDefault();
+                    Y.all('#thumbs > p > span').hide(true);
+                    Y.one('#mask').show({duration: 1.0});
+                    Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
+                    setTimeout(function(){getTagPair(getPicUrl, '');}, 1000);
+
+                });
                 return;
             }
             p = r.size;
@@ -86,7 +94,16 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', 'button', function (Y) {
         Y.YQL(Y.Lang.sub(query, para2), function (response) {
             var r = response.query.results, p;
             if (r === null) {
-                Y.one('#mask-msg').setHTML('Error');
+                Y.one('#mask-msg').setHTML('Flickr server busy. <a id="try-again">Reconnect</a>');
+                Y.one('#try-again').on('click', function (e) {
+                    e.preventDefault();
+                    Y.all('#thumbs > p > span').hide(true);
+                    Y.one('#mask').show({duration: 1.0});
+                    Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
+                    setTimeout(function(){getTagPair(getPicUrl, '');}, 1000);
+
+
+                });
                 return;
             }
             p = r.size;
