@@ -1,8 +1,9 @@
-YUI().use('transition', 'yql', 'io', 'node', 'base', 'button', function (Y) {
+YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
     var bodyElem = Y.one('body');
     var cWidth = parseInt(bodyElem.getComputedStyle('width'), 10);
     var cHeight = parseInt(bodyElem.getComputedStyle('height'), 10) - 74;
     var WIDTH, HEIGHT; //canvas
+    var firstGetPair = true;
     if (cWidth / cHeight > 4/3) { //limit = height
         WIDTH = Math.floor(cHeight / 3 * 4);
         HEIGHT = cHeight;
@@ -31,31 +32,46 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', 'button', function (Y) {
         }
     }());
     (function () {
+        Y.one('#page').setStyle('width', WIDTH).setStyle('height', HEIGHT);
         Y.Node.create('<canvas>').set('width', WIDTH).set('height', HEIGHT).set('id', 'show').appendTo('#page');
         Y.Node.create('<canvas>').set('width', WIDTH).set('height', HEIGHT).set('id', 'pic1').appendTo('#page').hide();
         Y.Node.create('<canvas>').set('width', WIDTH).set('height', HEIGHT).set('id', 'pic2').appendTo('#page').hide();
     }());
 
-    var getTagPair = function (callback, extra) {
+    var getTagPair = function (callback, isDiff) {
         var tag1 = 'landscape', tag2 = 'portrait';
+        var tags;
+        Y.all('#thumbs > div').show();
         Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
-/*
-        Y.io('index.php', {
-            data: extra || ''
-            ,on: {
-                success: {
-
+        if ((firstGetPair === true) || (isDiff === true)){
+            Y.io('index.php', {
+                data: ''
+                ,on: {
+                    success: function (id, response) {
+                        tags = response.responseText.split(',');
+                        //tag1 = tags[0];
+                        //tag2 = tags[1];
+                        firstGetPair = false;
+                        console.log(tags);
+                        //callback({tag: [tag1, tag2]}, process);
+                    }
+                    ,failure: function (id, response) {
+                        console.log(response.status);
+                            Y.one('#mask-msg').setHTML('Masho server busy. <a id="try-again">Reconnect</a>');
+                            Y.one('#try-again').on('click', function (e) {
+                                e.preventDefault();
+                                Y.one('#mask').show({duration: 1.0});
+                                Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
+                                setTimeout(function(){getTagPair(getPicUrl, false);}, 1000);
+                            });
+                    }
                 }
-                ,failure: {
-
-                }
-            }
-        });
-*/
+            });
+        }
         callback({tag: [tag1, tag2]}, process);
     };
     var getPicUrl = function (cond, callback) {
-        Y.one('#mask-msg').setHTML('Fetching image url from YQL server...');
+        Y.one('#mask-msg').setHTML('Fetching image url from Flickr server...');
         var url1, url2;
         var validPic = function (w, h) {
             if ((w < WIDTH / 3) || (h < HEIGHT / 3)){
@@ -77,10 +93,9 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', 'button', function (Y) {
                 Y.one('#mask-msg').setHTML('Flickr server busy. <a id="try-again">Reconnect</a>');
                 Y.one('#try-again').on('click', function (e) {
                     e.preventDefault();
-                    Y.all('#thumbs > p > span').hide(true);
                     Y.one('#mask').show({duration: 1.0});
                     Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
-                    setTimeout(function(){getTagPair(getPicUrl, '');}, 1000);
+                    setTimeout(function(){getTagPair(getPicUrl, false);}, 1000);
 
                 });
                 return;
@@ -97,10 +112,9 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', 'button', function (Y) {
                 Y.one('#mask-msg').setHTML('Flickr server busy. <a id="try-again">Reconnect</a>');
                 Y.one('#try-again').on('click', function (e) {
                     e.preventDefault();
-                    Y.all('#thumbs > p > span').hide(true);
                     Y.one('#mask').show({duration: 1.0});
                     Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
-                    setTimeout(function(){getTagPair(getPicUrl, '');}, 1000);
+                    setTimeout(function(){getTagPair(getPicUrl, false);}, 1000);
 
 
                 });
@@ -190,31 +204,47 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', 'button', function (Y) {
                     }
                     f.putImageData(fc2, 0, 0);
                     Y.one('#mask').hide({duration: 2.0});
-                    Y.one('#select').show({duration: 1.0});
                 }
             };
         }());
     };
 
 //onload:
-    Y.all('#thumbs > p > span').hide();
     Y.all('.my-button').show();
+    Y.one('#thumbs').show();
     getTagPair(getPicUrl);
-    Y.one('header').delegate('click', function (e) {
+    Y.one('#diff').on('click', function (e) {
         e.preventDefault();
-        Y.all('#thumbs > p > span').hide(true);
         Y.one('#mask').show({duration: 1.0});
         Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
-        setTimeout(function(){getTagPair(getPicUrl, (e.target.get('id') === 'simi') ? '' : 'extra');}, 1000);
-    }, '.my-button');
-    Y.one('#select').delegate('click', function (e) {
+        setTimeout(function(){getTagPair(getPicUrl, true);}, 1000);
+    });
+    Y.all('.simi').on('click', function (e) {
         e.preventDefault();
-        Y.one('#select').hide();
-        Y.one('#thank').setStyle('opacity', '1.0').show();
+        Y.one('#mask').show({duration: 1.0});
+        Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
+        setTimeout(function(){getTagPair(getPicUrl, false);}, 1000);
+    });
+/*
+    Y.one('header').delegate('click', function (e) {
+        e.preventDefault();
+        Y.one('#mask').show({duration: 1.0});
+        Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
+        setTimeout(function(){getTagPair(getPicUrl, (e.target.get('id') === 'simi') ? false : true);}, 1000);
+    }, '.my-button');
+*/
+    Y.one('#thumbs').delegate('click', function (e) {
+        e.preventDefault();
+        var id = e.target.get('id');
+        if (id === 'thumbs-down') {
+            Y.one('#thumbs-up').hide(true);
+        } else {
+            Y.one('#thumbs-down').hide(true);
+        }
         Y.io('index.php', {
-            data: (e.target.get('className') === 'like') ? 'like' : 'dislike'
+            data: 'name=' + ((e.target.get('id') === 'thumbs-up') ? 'like' : 'dislike')
         });
-    }, 'span');
+    }, 'div');
 });
 
 
