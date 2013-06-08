@@ -4,6 +4,7 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
     var cHeight = parseInt(bodyElem.getComputedStyle('height'), 10) - 74;
     var WIDTH, HEIGHT; //canvas
     var firstGetPair = true;
+    var tag1, tag2;
     if (cWidth / cHeight > 4/3) { //limit = height
         WIDTH = Math.floor(cHeight / 3 * 4);
         HEIGHT = cHeight;
@@ -39,9 +40,9 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
     }());
 
     var getTagPair = function (callback, isDiff) {
-        var tag1 = 'landscape', tag2 = 'portrait';
+        tag1 = 'landscape'; tag2 = 'portrait';
         var tags;
-        Y.all('#thumbs > div').show();
+        Y.all('#thumbs > div').show(true);
         Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
         if ((firstGetPair === true) || (isDiff === true)){
             Y.io('index.php', {
@@ -49,11 +50,11 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
                 ,on: {
                     success: function (id, response) {
                         tags = response.responseText.split(',');
-                        //tag1 = tags[0];
-                        //tag2 = tags[1];
+                        tag1 = tags[0];
+                        tag2 = tags[1];
                         firstGetPair = false;
                         console.log(tags);
-                        //callback({tag: [tag1, tag2]}, process);
+                        callback({tag: [tag1, tag2]}, process);
                     }
                     ,failure: function (id, response) {
                         console.log(response.status);
@@ -67,8 +68,9 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
                     }
                 }
             });
+        } else {
+                callback({tag: [tag1, tag2]}, process);
         }
-        callback({tag: [tag1, tag2]}, process);
     };
     var getPicUrl = function (cond, callback) {
         Y.one('#mask-msg').setHTML('Fetching image url from Flickr server...');
@@ -84,7 +86,8 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
         };
         var urlStatus = [false, false];
 
-        var query = 'select source from flickr.photos.sizes where label="Medium 800" and height<"700" and height>"500" and photo_id in (select id from flickr.photos.search(30) where tags="{tag}" and api_key="92bd0de55a63046155c09f1a06876875") and api_key="92bd0de55a63046155c09f1a06876875";';
+        //var query = 'select source from flickr.photos.sizes where label="Medium 800" and height<"700" and height>"500" and photo_id in (select id from flickr.photos.search(60) where tags="{tag}" and api_key="92bd0de55a63046155c09f1a06876875") and api_key="92bd0de55a63046155c09f1a06876875";';
+        var query = 'select * from flickr.photos.sizes where width>"360" and photo_id in (select id from flickr.photos.search(30) where tags="{tag}" and api_key="92bd0de55a63046155c09f1a06876875") and api_key="92bd0de55a63046155c09f1a06876875";';
         var para1 = {tag: cond.tag[0]};
         var para2 = {tag: cond.tag[1]};
         Y.YQL(Y.Lang.sub(query, para1), function (response) {
@@ -100,12 +103,56 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
                 });
                 return;
             }
+            var getRandom = function (max) {//0~max - 1
+                var random = Math.floor(Math.random() * max);
+                random = (random >= max) ? max - 1 : random;
+                return random;
+            };
             p = r.size;
-            var random = Math.floor(Math.random() * p.length);
-            random = (random >= p.length) ? p.length : random;
-            url1 = p[random].source;
+            var rand,tempH, tempW;
+            while (true) {
+                rand = getRandom(p.length);
+                tempH = p[rand].height;
+                tempW = p[rand].width;
+                if ((tempW / tempH >= 1) && (tempW / tempH <= 1.6)) {
+                    url1 = p[rand].source;
+                    break;
+                }
+            };
             canWeStart(0);
         });
+        Y.YQL(Y.Lang.sub(query, para2), function (response) {
+            var r = response.query.results, p;
+            if (r === null) {
+                Y.one('#mask-msg').setHTML('Flickr server busy. <a id="try-again">Reconnect</a>');
+                Y.one('#try-again').on('click', function (e) {
+                    e.preventDefault();
+                    Y.one('#mask').show({duration: 1.0});
+                    Y.one('#mask-msg').setHTML('Fetching tag pair from server...');
+                    setTimeout(function(){getTagPair(getPicUrl, false);}, 1000);
+
+                });
+                return;
+            }
+            var getRandom = function (max) {//0~max - 1
+                var random = Math.floor(Math.random() * max);
+                random = (random >= max) ? max - 1 : random;
+                return random;
+            };
+            p = r.size;
+            var rand,tempH, tempW;
+            while (true) {
+                rand = getRandom(p.length);
+                tempH = p[rand].height;
+                tempW = p[rand].width;
+                if ((tempW / tempH >= 1) && (tempW / tempH <= 1.6)) {
+                    url2 = p[rand].source;
+                    break;
+                }
+            };
+            canWeStart(1);
+        });
+/*
         Y.YQL(Y.Lang.sub(query, para2), function (response) {
             var r = response.query.results, p;
             if (r === null) {
@@ -126,6 +173,7 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
             url2 = p[random].source;
             canWeStart(1);
         });
+*/
         var canWeStart = function (n) {
             urlStatus[n] = true;
             if ((urlStatus[0] === true) && (urlStatus[1] === true)) {
@@ -212,7 +260,7 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
 //onload:
     Y.all('.my-button').show();
     Y.one('#thumbs').show();
-    getTagPair(getPicUrl);
+    getTagPair(getPicUrl, true);
     Y.one('#diff').on('click', function (e) {
         e.preventDefault();
         Y.one('#mask').show({duration: 1.0});
@@ -242,7 +290,7 @@ YUI().use('transition', 'yql', 'io', 'node', 'base', function (Y) {
             Y.one('#thumbs-down').hide(true);
         }
         Y.io('index.php', {
-            data: 'name=' + ((e.target.get('id') === 'thumbs-up') ? 'like' : 'dislike')
+            data: 'name=' + ((e.target.get('id') === 'thumbs-up') ? 'like' : 'dislike') + '&tag=' + tag1 + ',' + tag2
         });
     }, 'div');
 });
